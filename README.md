@@ -125,9 +125,9 @@ Une relation est en **forme normale de Boyce-Codd (BCNF)** si, pour toute dépen
 ## 3. Étapes d'installation, de configuration et de lancement
 
 ### Prérequis et vérification de l'environnement
-- **PHP** (8.5.12) et **Composer** (2.11.2) installés.
+- **PHP** (8.2+ / 8.5.12) et **Composer** (2.11.2) installés.
 - Extensions PHP **`PDO`**, **`pdo_pgsql`** et **`pgsql`** activées.
-- **PostgreSQL** installé et actif.
+- **PostgreSQL** installé et démarré.
 
 Vérifier PHP, les extensions PostgreSQL et Composer :
 
@@ -137,18 +137,20 @@ php -m | grep -iE 'pdo_pgsql|pgsql'
 composer -V
 ```
 
+*(Si `pdo_pgsql` et `pgsql` n'apparaissent pas, installez/activez le paquet `php-pgsql` puis relancez la vérification.)*
+
 ### Installation et configuration
 
 ```bash
 cd ~
-git clone https://github.com/niaina1610/dev_web.git gestion-bibliotheque
+git clone [https://github.com/niaina1610/dev_web.git](https://github.com/niaina1610/dev_web.git) gestion-bibliotheque
 cd gestion-bibliotheque
 composer install
 php -r "file_exists('.env') || copy('.env.example', '.env');"
 php artisan key:generate
 ```
 
-Configurez ensuite la connexion PostgreSQL dans `.env` :
+Configurez ensuite la connexion PostgreSQL dans `.env` (en remplaçant `votre_mot_de_passe` par le mot de passe défini pour l'utilisateur `postgres` à l'étape 4) :
 
 ```env
 DB_CONNECTION=pgsql
@@ -169,7 +171,10 @@ php artisan optimize:clear
 
 ### Lancement
 
+Assurez-vous que PostgreSQL est démarré, puis lancez le serveur Laravel :
+
 ```bash
+sudo systemctl start postgresql
 php artisan serve
 ```
 
@@ -179,91 +184,29 @@ Accédez ensuite à **`http://127.0.0.1:8000`**.
 
 ## 4. Instructions pour créer et remplir la base de données
 
-Placez le script SQL de création et d'initialisation dans `database/sql/init_bibliotheque.sql` (ou exécutez directement les commandes `psql` ci-dessous).
+Le script complet de création des tables et d'insertion des données initiales se trouve dans `database/sql/init_bibliotheque.sql`.
 
-### Création de la base et des tables sous `psql`
+### Démarrer PostgreSQL et définir le mot de passe de `postgres` (si nécessaire)
 
 ```bash
-sudo -u postgres psql
+sudo systemctl start postgresql
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'votre_mot_de_passe';"
 ```
 
-Dans l'invite `postgres=#` :
+*(Utilisez ce même mot de passe pour `DB_PASSWORD` dans le fichier `.env`.)*
 
-```sql
-CREATE DATABASE gestion_bibliotheque ENCODING 'UTF8';
-\c gestion_bibliotheque
+### Création de la base et exécution du script SQL
 
-CREATE TABLE personne (
-    id_personne INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    prenoms VARCHAR(150) NOT NULL,
-    date_de_naissance DATE
-);
-
-CREATE TABLE abonne (
-    id_abonne INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    profession VARCHAR(120),
-    institut VARCHAR(150),
-    lot VARCHAR(100),
-    ville VARCHAR(100) NOT NULL,
-    code_postale VARCHAR(20),
-    id_personne INT NOT NULL UNIQUE,
-    CONSTRAINT fk_abonne_personne
-        FOREIGN KEY (id_personne) REFERENCES personne(id_personne)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
-
-CREATE TABLE livre (
-    isbn VARCHAR(20) PRIMARY KEY,
-    titre VARCHAR(255) NOT NULL,
-    edition VARCHAR(120),
-    nombre_de_page INT NOT NULL CHECK (nombre_de_page > 0),
-    id_abonne INT NULL,
-    CONSTRAINT fk_livre_abonne
-        FOREIGN KEY (id_abonne) REFERENCES abonne(id_abonne)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
-);
-
-CREATE TABLE ecrire (
-    isbn VARCHAR(20) NOT NULL,
-    id_personne INT NOT NULL,
-    PRIMARY KEY (isbn, id_personne),
-    CONSTRAINT fk_ecrire_livre
-        FOREIGN KEY (isbn) REFERENCES livre(isbn)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_ecrire_personne
-        FOREIGN KEY (id_personne) REFERENCES personne(id_personne)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
+```bash
+sudo -u postgres psql -c "CREATE DATABASE gestion_bibliotheque ENCODING 'UTF8';"
+sudo -u postgres psql -d gestion_bibliotheque -f database/sql/init_bibliotheque.sql
 ```
 
-### Remplissage initial des tables pour tester
+### Vérification du contenu
 
-```sql
-INSERT INTO personne (nom, prenoms, date_de_naissance) VALUES
-('Rakoto', 'Jean Luc', '1980-05-14'),
-('Niaina', 'Roberte', '2003-10-16');
-
-INSERT INTO abonne (profession, institut, lot, ville, code_postale, id_personne) VALUES
-('Étudiant', 'ISPM', 'Lot II M 45', 'Antananarivo', '101', 2);
-
-INSERT INTO livre (isbn, titre, edition, nombre_de_page, id_abonne) VALUES
-('978-2-212-12345-6', 'Introduction aux bases de données', 'Eyrolles', 320, NULL),
-('978-2-10-078910-2', 'Algorithmique pratique', 'Dunod', 410, 1);
-
-INSERT INTO ecrire (isbn, id_personne) VALUES
-('978-2-212-12345-6', 1),
-('978-2-10-078910-2', 1);
-
-SELECT * FROM livre;
-exit
+```bash
+sudo -u postgres psql -d gestion_bibliotheque -c "SELECT count(*) AS nb_livres FROM livre; SELECT count(*) AS nb_personnes FROM personne; SELECT count(*) AS nb_abonnes FROM abonne;"
 ```
-
-*(Si vous utilisez un fichier `database/sql/init_bibliotheque.sql` contenant ces instructions, vous pouvez l'exécuter avec : `sudo -u postgres psql -d gestion_bibliotheque -f database/sql/init_bibliotheque.sql`.)*
 
 ---
 
