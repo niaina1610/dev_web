@@ -129,6 +129,13 @@ Une relation est en **forme normale de Boyce-Codd (BCNF)** si, pour toute dépen
 - Extensions PHP **`PDO`**, **`pdo_pgsql`** et **`pgsql`** activées.
 - **PostgreSQL** installé et démarré.
 
+Installer les logiciels ou bibliothèques utiles si nécessaire (exemple sous Debian/Ubuntu ; adapter selon votre distribution Linux) :
+
+```bash
+sudo apt update
+sudo apt install -y git php php-cli php-pgsql php-xml php-mbstring php-curl composer postgresql postgresql-contrib
+```
+
 Vérifier PHP, les extensions PostgreSQL et Composer :
 
 ```bash
@@ -139,7 +146,7 @@ composer -V
 
 *(Si `pdo_pgsql` et `pgsql` n'apparaissent pas, installez/activez le paquet `php-pgsql` puis relancez la vérification.)*
 
-### Installation et configuration
+### Clonage du projet et installation des dépendances
 
 ```bash
 cd ~
@@ -150,7 +157,35 @@ php -r "file_exists('.env') || copy('.env.example', '.env');"
 php artisan key:generate
 ```
 
-Configurez ensuite la connexion PostgreSQL dans `.env` (en remplaçant `votre_mot_de_passe` par le mot de passe défini pour l'utilisateur `postgres` à l'étape 4) :
+### Démarrer PostgreSQL, créer la base et exécuter le script SQL
+
+Le script complet de création des tables et d'insertion des données initiales se trouve dans `database/sql/init_bibliotheque.sql`.
+
+Démarrer PostgreSQL et définir le mot de passe de `postgres` (si nécessaire) :
+
+```bash
+sudo systemctl start postgresql
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'votre_mot_de_passe';"
+```
+
+*(Utilisez ce même mot de passe pour `DB_PASSWORD` dans le fichier `.env`.)*
+
+Création de la base et exécution du script SQL :
+
+```bash
+sudo -u postgres psql -c "CREATE DATABASE gestion_bibliotheque ENCODING 'UTF8';"
+sudo -u postgres psql -d gestion_bibliotheque -f database/sql/init_bibliotheque.sql
+```
+
+Vérification du contenu :
+
+```bash
+sudo -u postgres psql -d gestion_bibliotheque -c "SELECT count(*) AS nb_livres FROM livre; SELECT count(*) AS nb_personnes FROM personne; SELECT count(*) AS nb_abonnes FROM abonne;"
+```
+
+### Configuration de Laravel et lancement
+
+Configurez ensuite la connexion PostgreSQL dans `.env` (en remplaçant `votre_mot_de_passe` par le mot de passe défini pour l'utilisateur `postgres` juste au-dessus) :
 
 ```env
 DB_CONNECTION=pgsql
@@ -168,8 +203,6 @@ Videz le cache de configuration et des vues :
 ```bash
 php artisan optimize:clear
 ```
-
-### Lancement
 
 Assurez-vous que PostgreSQL est démarré, puis lancez le serveur Laravel :
 
@@ -240,8 +273,8 @@ php artisan tinker --execute="DB::connection()->getPdo(); echo 'Connexion OK : '
 2. **Affichage** : ouvrir `http://127.0.0.1:8000` et vérifier l'affichage des livres (`Introduction aux bases de données`, `Algorithmique pratique`), des personnes et des abonnés.
 3. **Recherche** : taper un titre, un ISBN, une édition ou un nom d'auteur dans la barre de recherche, valider avec **Rechercher**, puis cliquer sur **Réinitialiser**.
 4. **Ajout** :
-   - Créer une personne dans *Ajouter une personne*.
-   - Créer un abonné associé à cette personne dans *Ajouter un abonné*.
-   - Ajouter un livre avec ses champs et un ou plusieurs auteurs dans *Ajouter un livre*.
+- Créer une personne dans *Ajouter une personne*.
+  - Créer un abonné associé à cette personne dans *Ajouter un abonné*.
+  - Ajouter un livre avec ses champs et un ou plusieurs auteurs dans *Ajouter un livre*.
 5. **Modification** : modifier un livre (titre, pages, auteur(s) ou emprunteur), une personne ou un abonné, puis cliquer sur **Modifier**.
 6. **Suppression et contraintes** : supprimer un livre de test ; tester l'ajout d'un doublon (même ISBN ou personne déjà abonnée) pour vérifier que le message d'erreur PostgreSQL s'affiche proprement.
