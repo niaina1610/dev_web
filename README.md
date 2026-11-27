@@ -141,7 +141,7 @@ composer -V
 
 ```bash
 cd ~
-git clone [https://github.com/niaina1610/dev_web.git](https://github.com/niaina1610/dev_web.git) gestion-bibliotheque
+git clone https://github.com/niaina1610/dev_web.git gestion-bibliotheque
 cd gestion-bibliotheque
 composer install
 php -r "file_exists('.env') || copy('.env.example', '.env');"
